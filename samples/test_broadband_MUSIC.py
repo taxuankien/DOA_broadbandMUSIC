@@ -8,7 +8,7 @@ import time
 
 elements_distance = 0.06
 sound_velo = 344
-file_name = 'vol_up0809_p60_1.wav'
+file_name = 'samples/vol_up_p60_3.wav'
 num_sources = 1
 num_elements = 3
 
@@ -30,7 +30,7 @@ def cut_array(array, L):
         result.append(array[start:end])
         start = start + L - overlap
         end = start + L
-
+    
     return result
 
 def Vad(raw_data, num_frame):
@@ -38,7 +38,7 @@ def Vad(raw_data, num_frame):
     # frame_data = np.copy(frame_data)
     W_function = []
     for i in range(num_frame):
-        
+
         raw_frame = np.array([frame_data[i]])
         sign_array = np.zeros(len(raw_frame))
         array = raw_frame ** 2
@@ -99,6 +99,7 @@ with wave.open(file_name, 'rb') as wav_file:
     # Đọc dữ liệu từ các loa và chuyển đổi thành mảng NumPy
     wav_data = wav_file.readframes(num_frames)
     wav_array = np.frombuffer(wav_data, dtype=np.int16)
+start = time.time()
 spectrum = np.zeros(361)
 angles = np.linspace(-np.pi/2, np.pi/2, 361)
 split_data = np.array_split(wav_array,1 )
@@ -106,22 +107,23 @@ for m, mang in enumerate(split_data):
     channel_1_raw = mang[0::3]
     channel_2_raw = mang[1::3]
     channel_3_raw = mang[2::3]
-    print(channel_1_raw.shape)
+    # print(channel_1_raw.shape)
     check_voice, extract_array = Vad(channel_1_raw, 40)
-    idx = np.nonzero(extract_array)[0][0]
-    idx_end = np.nonzero(extract_array)[0][-1]
-    plt.plot(channel_1_raw )
-    plt.plot(extract_array * 100)
-    plt.plot(idx,extract_array[idx] *100, 'x')
-    plt.plot(idx_end,extract_array[idx_end] * 100, 'x')
-    plt.title('MUSIC (DOA )')
-    plt.legend(['P_music','Estimated DoAs', 'start', 'end'])
+    idx = np.nonzero(extract_array)[0][0] * 0
+    # idx_end = np.nonzero(extract_array)[0][-1]
+    idx_end = -1
+    # plt.plot(channel_1_raw )
+    # plt.plot(extract_array * 100)
+    # plt.plot(idx,extract_array[idx] *100, 'x')
+    # plt.plot(idx_end,extract_array[idx_end] * 100, 'x')
+    # plt.title('MUSIC (DOA )')
+    # plt.legend(['P_music','Estimated DoAs', 'start', 'end'])
 
     # channel_1_raw = channel_1_raw * extract_array
     # channel_2_raw = channel_2_raw * extract_array
     # channel_3_raw = channel_3_raw * extract_array
-    plt.grid()
-    plt.show()
+    # plt.grid()
+    # plt.show()
     if(check_voice > 0):
         
         print("VADed")
@@ -132,10 +134,11 @@ for m, mang in enumerate(split_data):
         channel_2 = cut_array(channel_2_raw[idx : idx_end], FRAME_SAM)
         channel_3 = cut_array(channel_3_raw [idx : idx_end], FRAME_SAM)
         extractor = cut_array(extract_array[idx : idx_end], FRAME_SAM)
+        
         for k, mang in enumerate(extractor):
-            if(sum(extractor[k]) >= 3/4 * FRAME_SAM):
+            if(sum(extractor[k]) >= 0* 3/4 * FRAME_SAM):
                 channel_1_fft = fft(channel_1[k] * np.hamming(FRAME_SAM) )
-                print(channel_1[k])
+                # print(channel_1[k])
                 channel_2_fft = fft(channel_2[k] * np.hamming(FRAME_SAM))
                 channel_3_fft = fft(channel_3[k] * np.hamming(FRAME_SAM))
                 
@@ -153,7 +156,7 @@ for m, mang in enumerate(split_data):
                 
                 array = np.linspace(0, length - 1, length)
 
-                start = time.time()
+                
                 mic1_theta = pass_band(channel_1_fft, 150, 8000, frame_rate)
                 mic2_theta = pass_band(channel_2_fft, 150, 8000, frame_rate)
                 mic3_theta = pass_band(channel_3_fft, 150, 8000, frame_rate)
@@ -212,7 +215,8 @@ for m, mang in enumerate(split_data):
                     # print("time for music:" + str(time3 - time2))
                 
 
-                spectrum += np.log(spec)
+                spectrum += spec
+                print(max(spectrum))
                 doa = np.argmax(spectrum)
                 Angles_dgree = angles*180/np.pi
                 plt.plot(Angles_dgree,spectrum )
@@ -223,8 +227,8 @@ for m, mang in enumerate(split_data):
 
                 print('MUSIC DoAs:',Angles_dgree[doa],'\n')
                 plt.grid()
-                # plt.show()
-            else:
-                print("done") 
+                plt.show()
+            # else:
+            #     print("done") 
                 
         print("time for loop: " + str( time.time() - start))

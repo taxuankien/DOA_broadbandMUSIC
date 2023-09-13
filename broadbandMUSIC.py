@@ -1,67 +1,69 @@
 import numpy as np
+import matplotlib as plt
+from scipy.fft import fft, ifft
 import math
 
-
+def recv_data(desire_len, server):
+# Nhận dữ liệu cho đến khi nhận đủ kích thước đã xác định
+    data = b''
+    while len(data) < desire_len:
+        packet = server.recv(desire_len - len(data))
+        if not packet:
+            break
+        data += packet
+        
+    return data
 
 def pass_band(spectrum, fre_min, fre_max,fs):
-    freqs = np.fft.fftfreq(len(spectrum), d = 1/fs)
-    spectrum[np.where(freqs < fre_min)] = 0
-    spectrum[np.where(freqs > fre_max)] = 0
+    freqs = np.fft.fftfreq(len(spectrum)*2, d= 1/fs)
+    i = 0
+    spectrum[np.argwhere(freqs < fre_min)] = 0
+    spectrum[np.argwhere(freqs > fre_max)] = 0
     return spectrum
 
-def cut_array(array, L):
+def cut_array(array, Length, ovlap):
     result = []
-    overlap = int(L * 0.5)  # Tính overlap dựa trên 50% của L
-
+    overlap = int(Length * ovlap)  # Tính overlap dựa trên 50% của L
     start = 0
-    end = L
+    end = Length
 
     while end <= len(array):
         result.append(array[start:end])
-        start = start + L - overlap
-        end = start + L
+        start = start + Length - overlap
+        end = start + Length
+    
     return result
 
-# Voice activity detection function
-def Vad(raw_data, num_frame):
-    frame_data = np.array(np.array_split(raw_data, num_frame))
-    # frame_data = np.copy(frame_data)
-    W_function = []
-    for i in range(num_frame):
-        
-        raw_frame = np.array([frame_data[i]])
-        sign_array = np.zeros(len(raw_frame))
-        array = raw_frame ** 2
-        power = np.sum(array)/len(raw_frame)
-        zero_cross = 0
-        sign_array = np.sign(raw_frame).T
-        print(sign_array.shape)
-        sign_array[np.argwhere(sign_array == 0)] = 1
-        for j in range(1, sign_array.shape[1]):
-            zero_cross = zero_cross + abs(sign_array[j] - sign_array[j - 1])/2
-        zero_cross /= len(sign_array)
-        W_function =np.append(W_function,int(power * (1 - zero_cross)*1000))
-    mean_W = np.mean(W_function)
-    var_W = np.var(W_function)
-    alpha = 0.3 * math.pow(var_W, -0.92)
-    trigger = mean_W + alpha * var_W
-    W_function = W_function - trigger
-    W_function = np.sign(W_function)
-    frame_data[np.argwhere(W_function >= 0)] = 1
-    frame_data[np.argwhere(W_function < 0)] = 0
-    extractor = frame_data.flatten()
+def Ws(array):
+    sign_array = np.sign(array)
+    array = array ** 2
+    power = np.sum(array)/len(array)
+    zero_coss = 0
+    sign_array[np.argwhere(sign_array == 0)] = 1
 
-    #them code xu ly ca doan am thanh co duoc xu ly hay khong (voice chien 60 phan tram thi la 1)
-    check_voice = 1
- 
-    return check_voice, extractor
+    for j in range(1, len(sign_array)):
+        zero_cross = zero_cross + abs(sign_array[j] - sign_array[j - 1])/2
+    zero_coss /= len(sign_array)
+
+    return int(power) * (1 - zero_cross)*1000
+
+def vad(data, frame_size):
+    cut_data = cut_array(data, frame_size, 0.5)
+    Ws_func = []
+    # tinh Short time energy va Zero crossing rate voi tung frame
+    for i,array in enumerate(cut_data):
+        Ws_func = np.append(Ws_func, Ws(array))
+    mean_Ws = np.mean(Ws_func)
+    var_Ws = np.var(Ws_func)
+    alpha = 0.3 * math.pow(var_Ws, -0.92)
+    return mean_Ws + alpha * var_Ws
 
 def music(CovMat,arr_size, Angles, num_sources):
     # CovMat is the signal covariance matrix, L is the number of sources, N is the number of antennas
     # array holds the positions of antenna elements
     # Angles are the grid of directions in the azimuth angular domain
     eig_val,eig_vector = np.linalg.eig(CovMat)
-    # tri rieng va vector rieng can duoc xep tu lon den be 
+    # tri rien va vector rieng can duoc xep tu lon den be 
     eig_val = np.abs(eig_val)
     idx_min = np.argsort(eig_val)[:(arr_size - num_sources)]
     idx_min = np.flip(idx_min)
@@ -73,6 +75,6 @@ def music(CovMat,arr_size, Angles, num_sources):
     av = np.array([1, 1, 1]).T
     av = av / np.abs(av)
     pspectrum = 1/((np.abs(av.transpose() @ Qn @ Qn.conj().transpose() @ av)))
-    pspectrum = np.log10(pspectrum)
+    # pspectrum = np.log10(pspectrum)
 
     return pspectrum
