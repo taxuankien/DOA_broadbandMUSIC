@@ -1,7 +1,9 @@
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from scipy.fft import fft, ifft
 import math
+
+radius = 1
 
 def recv_data(desire_len, server):
 # Nhận dữ liệu cho đến khi nhận đủ kích thước đã xác định
@@ -15,8 +17,7 @@ def recv_data(desire_len, server):
     return data
 
 def pass_band(spectrum, fre_min, fre_max,fs):
-    freqs = np.fft.fftfreq(len(spectrum)*2, d= 1/fs)
-    i = 0
+    freqs = np.fft.fftfreq(len(spectrum), d= 1/fs)
     spectrum[np.argwhere(freqs < fre_min)] = 0
     spectrum[np.argwhere(freqs > fre_max)] = 0
     return spectrum
@@ -38,17 +39,16 @@ def Ws(array):
     sign_array = np.sign(array)
     array = array ** 2
     power = np.sum(array)/len(array)
-    zero_coss = 0
     sign_array[np.argwhere(sign_array == 0)] = 1
-
+    zero_cross = 0
     for j in range(1, len(sign_array)):
         zero_cross = zero_cross + abs(sign_array[j] - sign_array[j - 1])/2
-    zero_coss /= len(sign_array)
+    zero_cross /= len(sign_array)
 
     return int(power) * (1 - zero_cross)*1000
 
 def vad(data, frame_size):
-    cut_data = cut_array(data, frame_size, 0.5)
+    cut_data = cut_array(data, frame_size, 0)
     Ws_func = []
     # tinh Short time energy va Zero crossing rate voi tung frame
     for i,array in enumerate(cut_data):
@@ -71,8 +71,8 @@ def music(CovMat,arr_size, Angles, num_sources):
     Qn  = eig_vector[:,idx_min]
     # array = np.linspace(0, m -1 , num= m)
 
-    # av = np.array([1, 1/np.exp(elements_distance * np.sin(Angles)), 1/np.exp(2 * elements_distance * np.sin(Angles))]).T
-    av = np.array([1, 1, 1]).T
+    av = np.array([1/radius, 1/np.sqrt((radius * np.sin(Angles)+0.06)**2 + (radius * np.cos(Angles))**2 ), 1/np.sqrt((radius * np.sin(Angles)+0.12)**2 + (radius * np.cos(Angles))**2 )]).T
+    # av = np.array([1, 1, 1]).T
     av = av / np.abs(av)
     pspectrum = 1/((np.abs(av.transpose() @ Qn @ Qn.conj().transpose() @ av)))
     # pspectrum = np.log10(pspectrum)
