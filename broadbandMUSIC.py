@@ -4,7 +4,7 @@ from scipy.fft import fft, ifft
 import math
 
 radius = 1
-
+noise_power = 60
 def recv_data(desire_len, server):
 # Nhận dữ liệu cho đến khi nhận đủ kích thước đã xác định
     data = b''
@@ -71,10 +71,32 @@ def music(CovMat,arr_size, Angles, num_sources):
     Qn  = eig_vector[:,idx_min]
     # array = np.linspace(0, m -1 , num= m)
 
-    av = np.array([1/radius, 1/np.sqrt((radius * np.sin(Angles)+0.06)**2 + (radius * np.cos(Angles))**2 ), 1/np.sqrt((radius * np.sin(Angles)+0.12)**2 + (radius * np.cos(Angles))**2 )]).T
-    # av = np.array([1, 1, 1]).T
+    # av = np.array([1/radius, 1/np.sqrt((radius * np.sin(Angles)+0.06)**2 + (radius * np.cos(Angles))**2 ), 1/np.sqrt((radius * np.sin(Angles)+0.12)**2 + (radius * np.cos(Angles))**2 )]).T
+    av = np.array([1, 1, 1, 1]).T
     av = av / np.abs(av)
     pspectrum = 1/((np.abs(av.transpose() @ Qn @ Qn.conj().transpose() @ av)))
     # pspectrum = np.log10(pspectrum)
 
     return pspectrum
+
+def power(data):
+    # energy = sum(np.abs(array) ** 2)
+    array = data
+    energy = sum(np.square(array.astype(np.int32)))
+    return energy/len(array)
+
+def snr(array):
+    Snr = 10* np.log10(power(array)/noise_power - 1)
+    return Snr
+
+def arr_shift(arr: np.ndarray, shift: int) -> np.ndarray:
+    if shift == 0:
+        return arr
+    nas = np.zeros(np.abs(shift))
+    if shift > 0:
+        res = arr[:-shift]
+        return np.concatenate((nas,res))
+        # return res
+    res = arr[-shift:]
+    # return res
+    return np.concatenate((res,nas))
